@@ -1,0 +1,6 @@
+# Optionnel : permet des URL plus propres si mod_rewrite est actif.
+# Sinon, utilisez simplement public/index.php?r=...
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?r=$1 [QSA,L]

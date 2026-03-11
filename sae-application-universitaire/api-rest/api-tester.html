@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Tester (SAE)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; background:#f6f7fb; }
+    header { padding: 16px 20px; background:#0f1f3a; color:#fff; }
+    main { max-width: 1100px; margin: 0 auto; padding: 18px; }
+    .card { background:#fff; border-radius:14px; box-shadow: 0 8px 24px rgba(16,24,40,.08); padding: 16px; }
+    .row { display:flex; gap:12px; flex-wrap: wrap; }
+    label { font-size: 12px; color:#334155; display:block; margin-bottom:6px; }
+    input, select, textarea { width:100%; padding:10px 11px; border:1px solid #d0d7e2; border-radius:10px; font: inherit; }
+    textarea { min-height: 130px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono"; }
+    button { padding:10px 12px; border:0; border-radius:10px; background:#2563eb; color:#fff; cursor:pointer; font-weight:600; }
+    button.secondary { background:#0f1f3a; }
+    button:disabled { opacity:.6; cursor:not-allowed; }
+    .col { flex:1 1 250px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono"; }
+    .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#f1f5f9; color:#0f1f3a; font-size:12px; }
+    .ok { background:#dcfce7; color:#14532d; }
+    .bad { background:#fee2e2; color:#7f1d1d; }
+    pre { white-space: pre-wrap; word-break: break-word; background:#0b1220; color:#e5e7eb; padding:12px; border-radius:12px; }
+    .hint { color:#64748b; font-size:12px; }
+  </style>
+</head>
+<body>
+<header>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <div style="background:#fbbf24; width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#0f1f3a; font-weight:900;">API</div>
+    <div>
+      <div style="font-weight:800;">API Tester (SAE)</div>
+      <div class="hint" style="color:#cbd5e1;">Mini interface HTML pour tester ton API REST</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <div class="row">
+      <div class="col">
+        <label>Base URL (ex: https://projets.iut-orsay.fr/saes3-mbourem/api1)</label>
+        <input id="baseUrl" value="https://projets.iut-orsay.fr/saes3-mbourem/api1" />
+        <div class="hint">Astuce : laisse sans “/” à la fin.</div>
+      </div>
+
+      <div class="col" style="max-width:220px;">
+        <label>Méthode</label>
+        <select id="method">
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>PATCH</option>
+          <option>DELETE</option>
+        </select>
+      </div>
+
+      <div class="col">
+        <label>Chemin (ex: /etudiants ou /auth/login)</label>
+        <input id="path" value="/health" />
+        <div class="hint">Tu peux aussi mettre un chemin complet, on gère.</div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px;">
+      <div class="col">
+        <label>Authorization (Bearer token) – optionnel</label>
+        <input id="token" placeholder="colle ici ton token JWT si ton API l'utilise" />
+        <div class="hint">Si ton API fait “Authorization: Bearer …”.</div>
+      </div>
+
+      <div class="col">
+        <label>Headers JSON supplémentaires – optionnel</label>
+        <textarea id="headers" placeholder='{"X-Test":"1"}'></textarea>
+        <div class="hint">Doit être un JSON valide (objet).</div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px;">
+      <div class="col">
+        <label>Body JSON (pour POST/PUT/PATCH) – optionnel</label>
+        <textarea id="body" placeholder='{"login":"...", "password":"..."}'></textarea>
+        <div class="hint">Si méthode GET/DELETE, laisse vide.</div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px; align-items:center;">
+      <button id="sendBtn" onclick="send()">Envoyer</button>
+      <button class="secondary" onclick="presetLogin()">Preset: auth/login</button>
+      <button class="secondary" onclick="presetEtudiants()">Preset: etudiants</button>
+      <span id="statusPill" class="pill">En attente</span>
+      <span class="hint" id="timing"></span>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <div>
+        <div style="font-weight:800;">Résultat</div>
+        <div class="hint">Status + headers + body. Si tu vois une erreur CORS, lis la note en bas.</div>
+      </div>
+      <button class="secondary" onclick="clearOutput()">Effacer</button>
+    </div>
+
+    <div style="margin-top:12px;">
+      <div class="hint">Request</div>
+      <pre id="reqOut" class="mono">-</pre>
+    </div>
+
+    <div style="margin-top:12px;">
+      <div class="hint">Response</div>
+      <pre id="resOut" class="mono">-</pre>
+    </div>
+  </div>
+
+  <div class="hint" style="margin-top:12px;">
+    <b>Si tu as un blocage CORS :</b> uploade ce fichier dans <code>/saes3-mbourem/</code> (même domaine),
+    puis ouvre-le via <code>https://projets.iut-orsay.fr/saes3-mbourem/api-tester.html</code>.
+    Sinon, il faut activer CORS côté API (en-têtes Access-Control-Allow-*).
+  </div>
+</main>
+
+<script>
+  function normUrl(base, path) {
+    base = (base || "").trim().replace(/\/+$/, "");
+    path = (path || "").trim();
+    if (!path) path = "/";
+    // Si l'utilisateur met déjà une URL complète dans path
+    if (/^https?:\/\//i.test(path)) return path;
+    if (!path.startsWith("/")) path = "/" + path;
+    return base + path;
+  }
+
+  function parseJsonOrEmpty(text, defaultValue) {
+    const t = (text || "").trim();
+    if (!t) return defaultValue;
+    return JSON.parse(t);
+  }
+
+  function setPill(text, ok=null) {
+    const pill = document.getElementById("statusPill");
+    pill.textContent = text;
+    pill.classList.remove("ok", "bad");
+    if (ok === true) pill.classList.add("ok");
+    if (ok === false) pill.classList.add("bad");
+  }
+
+  function clearOutput() {
+    document.getElementById("reqOut").textContent = "-";
+    document.getElementById("resOut").textContent = "-";
+    document.getElementById("timing").textContent = "";
+    setPill("En attente");
+  }
+
+  async function send() {
+    const btn = document.getElementById("sendBtn");
+    btn.disabled = true;
+    setPill("Envoi…");
+
+    const baseUrl = document.getElementById("baseUrl").value;
+    const method  = document.getElementById("method").value;
+    const path    = document.getElementById("path").value;
+    const token   = document.getElementById("token").value.trim();
+    const headersText = document.getElementById("headers").value;
+    const bodyText    = document.getElementById("body").value;
+
+    let extraHeaders = {};
+    try {
+      extraHeaders = parseJsonOrEmpty(headersText, {});
+      if (typeof extraHeaders !== "object" || Array.isArray(extraHeaders) || extraHeaders === null) {
+        throw new Error("Headers doit être un objet JSON.");
+      }
+    } catch (e) {
+      btn.disabled = false;
+      setPill("Headers JSON invalides", false);
+      document.getElementById("resOut").textContent = String(e);
+      return;
+    }
+
+    const url = normUrl(baseUrl, path);
+
+    const headers = {
+      "Accept": "application/json",
+      ...extraHeaders
+    };
+    if (token) headers["Authorization"] = "Bearer " + token;
+
+    let body = undefined;
+    if (["POST","PUT","PATCH"].includes(method)) {
+      const trimmed = (bodyText || "").trim();
+      if (trimmed) {
+        try {
+          const obj = JSON.parse(trimmed);
+          body = JSON.stringify(obj);
+          headers["Content-Type"] = "application/json; charset=utf-8";
+        } catch (e) {
+          btn.disabled = false;
+          setPill("Body JSON invalide", false);
+          document.getElementById("resOut").textContent = "Body JSON invalide : " + String(e);
+          return;
+        }
+      }
+    }
+
+    // Affichage request
+    document.getElementById("reqOut").textContent =
+      `${method} ${url}\n` +
+      `Headers: ${JSON.stringify(headers, null, 2)}\n` +
+      (body ? `Body: ${body}\n` : `Body: (vide)\n`);
+
+    const t0 = performance.now();
+    try {
+      const resp = await fetch(url, { method, headers, body });
+      const t1 = performance.now();
+
+      const statusLine = `${resp.status} ${resp.statusText}`;
+      const ok = resp.ok;
+
+      const respHeaders = {};
+      resp.headers.forEach((v, k) => respHeaders[k] = v);
+
+      let text = await resp.text();
+      let prettyBody = text;
+
+      // tente JSON pretty
+      try {
+        const js = JSON.parse(text);
+        prettyBody = JSON.stringify(js, null, 2);
+      } catch (_) {}
+
+      document.getElementById("timing").textContent = `⏱ ${(t1 - t0).toFixed(0)} ms`;
+      setPill(statusLine, ok);
+
+      document.getElementById("resOut").textContent =
+        `Status: ${statusLine}\n` +
+        `Headers: ${JSON.stringify(respHeaders, null, 2)}\n\n` +
+        `Body:\n${prettyBody}`;
+
+    } catch (e) {
+      const t1 = performance.now();
+      document.getElementById("timing").textContent = `⏱ ${(t1 - t0).toFixed(0)} ms`;
+      setPill("Erreur fetch (CORS ?)", false);
+      document.getElementById("resOut").textContent =
+        "Erreur fetch : " + String(e) + "\n\n" +
+        "Si tu vois CORS, ouvre ce fichier via https sur le même domaine (projets.iut-orsay.fr) " +
+        "ou ajoute les en-têtes CORS dans l'API.";
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function presetLogin() {
+    document.getElementById("method").value = "POST";
+    document.getElementById("path").value = "/auth/login";
+    document.getElementById("body").value = JSON.stringify({ login:"", password:"" }, null, 2);
+  }
+
+  function presetEtudiants() {
+    document.getElementById("method").value = "GET";
+    // adapte si ton API utilise un chemin formation/semestre
+    document.getElementById("path").value = "/formations/1/semestres/1/etudiants";
+    document.getElementById("body").value = "";
+  }
+</script>
+</body>
+</html>
